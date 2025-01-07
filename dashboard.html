@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThingSpeak Data Display</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #0073e6;
+        }
+        .data-display {
+            margin: 20px auto;
+            max-width: 800px;
+            text-align: center;
+        }
+        canvas {
+            margin-top: 20px;
+        }
+        .data-display h2 {
+            color: #333;
+        }
+        .data-display p {
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Weather Data from ThingSpeak</h1>
+    <div id="data" class="data-display">
+        <h2>Live Data</h2>
+        <p>Temperature: <span id="temperature">Loading...</span> °C</p>
+        <p>Humidity: <span id="humidity">Loading...</span> %</p>
+        <p>Rainfall: <span id="rainfall">Loading...</span> mm</p>
+    </div>
+    <div class="data-display">
+        <h2>Weather Trends</h2>
+        <canvas id="weatherChart" width="400" height="200"></canvas>
+    </div>
+
+    <script>
+        // Function to fetch data from ThingSpeak
+        function fetchThingSpeakData() {
+            const channelID = '2801190'; // Your ThingSpeak Channel ID
+            const readAPIKey = 'IDNFOXR3BE2J3Q2B'; // Your ThingSpeak Read API Key
+            const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=10`; // Get last 10 results
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.feeds && data.feeds.length > 0) {
+                        const feeds = data.feeds;
+
+                        // Display the most recent data
+                        const latestFeed = feeds[feeds.length - 1];
+                        document.getElementById('temperature').textContent = latestFeed.field1; // Field 1: Temperature
+                        document.getElementById('humidity').textContent = latestFeed.field2;    // Field 2: Humidity
+                        document.getElementById('rainfall').textContent = latestFeed.field3;    // Field 3: Rainfall
+
+                        // Prepare data for the chart
+                        const labels = feeds.map(feed => new Date(feed.created_at).toLocaleTimeString());
+                        const temperatures = feeds.map(feed => feed.field1);
+                        const humidities = feeds.map(feed => feed.field2);
+                        const rainfalls = feeds.map(feed => feed.field3);
+
+                        // Render the chart
+                        renderChart(labels, temperatures, humidities, rainfalls);
+                    } else {
+                        document.getElementById('data').innerHTML = '<h2>No data found.</h2>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    document.getElementById('data').innerHTML = '<h2>Error loading data.</h2>';
+                });
+        }
+
+        // Function to render the chart
+        function renderChart(labels, temperatures, humidities, rainfalls) {
+            const ctx = document.getElementById('weatherChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Temperature (°C)',
+                            data: temperatures,
+                            borderColor: 'rgb(200, 255, 99)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Humidity (%)',
+                            data: humidities,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Rainfall (mm)',
+                            data: rainfalls,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Fetch data when the page loads
+        window.onload = fetchThingSpeakData;
+    </script>
+</body>
+</html>
